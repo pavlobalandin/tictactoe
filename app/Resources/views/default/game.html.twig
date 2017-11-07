@@ -1,0 +1,184 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+	<div id="wrapper">
+		<div id="container">
+			<div id="welcome">
+				<h1><span>Game table</span></h1>
+			</div>
+			<div id="status">
+				gameId: {{ gameId }}<br/>
+				players: <span id="players">
+				{% for player in players %}
+					{% if player == playerId %} <b>{{ player }}</b> {% else %} {{ player }} {% endif %}
+				{% endfor %}</span>
+				<br/>
+				your key: {{ symbol }}<br/>
+				waiting for: <span id="waiting">{{ waiting }}</span>
+			</div>
+			<div id="error"></div>
+			<div id="field">
+				<table>
+				{% for w, row in field %}
+					<tr>
+					{% for h, cell in row %}
+						<td id="cell_{{ w }}_{{ h }}">{{ cell }}</td>
+					{% endfor %}
+					</tr>
+				{% endfor %}
+				</table>
+			</div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block stylesheets %}
+	<style>
+		#field table td {
+			padding: 20pt;
+			border-style: solid;
+			border-color: black;
+			cursor: pointer;
+			font-weight: bold;
+		}
+
+		#field table tr {
+			height: 100px;
+		}
+
+		#field table td:before {
+			content: '';
+			display: block;
+			width: 2em;
+		}
+
+		#error {
+			font-weight: bold;
+			color: red;
+			height: 30px;
+		}
+	</style>
+{% endblock %}
+
+{% block javascripts_head %}
+	<script type="text/javascript">
+		var playerId = '{{ playerId }}';
+		var gameId = '{{ gameId }}';
+		var waitingOtherParty = {{ waitingOtherParty }};
+		var finished = false;
+		var waitTimer = false;
+		var symbol = '{{ symbol }}';
+
+		var intervalId = null;
+	</script>
+{% endblock %}
+
+{% block javascripts %}
+<script type="text/javascript">
+
+$('#field table td').click(function(event) {
+
+
+	if (waitingOtherParty) {
+		$('#error').text('Waiting other party!');
+		return;
+	}
+
+	var data = {
+		playerId: playerId,
+		gameId: gameId,
+		cellId: $(this).attr('id')
+	};
+
+	$('#error').text('');
+
+	$(this).text(symbol);
+
+	waitingOtherParty = true;
+	switchTableColor();
+
+	waitTimer = true;
+	$.post( '{{ path('turn') }}', data, function(response) {
+		if (response.success) {
+			fillTable(response.field);
+
+			if (response.waiting != playerId) {
+				waitingOtherParty = true;
+			}
+			switchTableColor();
+		} else {
+			$('#error').text(response.message);
+		}
+	}).fail(function() {
+		alert('Error posting data.');
+	}).always(function() {
+		waitTimer = false;
+	});
+});
+
+
+function fillTable(data) {
+	for (h = 0; h < data.length; h++) {
+		for (w = 0; w < data[h].length; w++) {
+			$('#cell_' + h + '_' + w).text(data[h][w]);
+		}
+	}
+}
+
+function switchTableColor() {
+	$('#field table').find('td').css('background-color', (waitingOtherParty || finished ? '#eff0f1' : ''));
+
+	if (waitingOtherParty) {
+		$('#waiting').text('Other party').css('color', '');
+	} else {
+		$('#waiting').text('You').css('color', 'green');
+	}
+}
+
+function getCurrentStatus() {
+	var data = {
+		playerId: playerId,
+		gameId: gameId,
+		cellId: $(this).attr('id')
+	};
+
+	waitTimer = true;
+	$.post( '{{ path('status') }}', data, function(response) {
+		if (response.success) {
+			if (response.finished) {
+				finished = true;
+
+				$('#error').text('GAME FINISHED, WINNER: ' + (response.winner == symbol ? 'YOU' : 'OPPONENT'));
+				clearInterval(intervalId);
+			}
+			fillTable(response.field);
+
+			if (!finished) {
+				if (response.waiting != playerId) {
+					waitingOtherParty = true;
+				} else {
+					waitingOtherParty = false;
+				}
+			}
+			switchTableColor();
+		} else {
+			$('#error').text(response.message);
+		}
+	}).fail(function() {
+//		alert('Error getting status.');
+	}).always(function() {
+		waitTimer = false;
+	});
+}
+
+
+intervalId = setInterval(function () {
+	if (!waitTimer && !finished) {
+		getCurrentStatus();
+	}
+}, 5000);
+
+switchTableColor();
+
+</script>
+{% endblock %}
+
