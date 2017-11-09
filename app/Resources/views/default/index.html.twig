@@ -9,12 +9,11 @@
 			<div id="info">
 				<p>
 					Your playerId is <span>{{ playerId }}</span>,<br/>
-					waiting slots count is <span>{{ slotsCount }}</span><br/>
-					press ENTER to start.
+					press <u>Enter Game</u> to start.
 				</p>
 				<form method="POST" action="{{ path('game') }}">
 					<input type="hidden" name="playerId" value="{{ playerId }}"/>
-					<input type="submit" value="ENTER">
+					<input type="submit" value="Enter Game">
 				</form>
 			</div>
 

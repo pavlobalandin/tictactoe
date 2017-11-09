@@ -34,24 +34,26 @@ class DefaultController extends AbstractController
 		$playerId = $request->request->get('playerId');
 
 		/** @var Game $game */
-		$game = $this->gameFactory->pickUpOrCreate($playerId);
+		$game = $this->gameAdapter->pickUpOrCreate($playerId);
 
 		$player = new Player($playerId);
 		$player->register($game);
 
-		$this->gameFactory->cleanupGames();
+		$this->gameAdapter->cleanupGames();
 
 		$game->save();
 
 		return $this->render('default/game.html.twig', [
 			'gameId'   => $game->getId(),
 			'playerId' => $player->getId(),
-			'players'  => $game->getPlayers(),
 			'field'    => $game->getField()->getCurrent(),
 			'symbol'   => $game->getPlayerSymbol($player->getId()),
 			'waiting'  => $game->getWaiting() != $player->getId() ? Game::LABEL_OTHER_PARTY : Game::LABEL_YOU,
 
 			'waitingOtherParty' => $game->getWaiting() != $player->getId() ? 'true' : 'false',
+
+			'labelOtherParty' => Game::LABEL_OTHER_PARTY,
+			'labelYou'        => Game::LABEL_YOU,
 		]);
 	}
 }

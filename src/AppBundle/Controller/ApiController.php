@@ -7,6 +7,7 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\Route;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use AppBundle\Model\ResponsePayload;
 
 class ApiController extends AbstractController
 {
@@ -19,40 +20,36 @@ class ApiController extends AbstractController
 	public function turnAction(Request $request)
 	{
 		$this->initFactory();
-		$data = [
-			'success'  => FALSE,
-			'finished' => FALSE,
-		];
+		$data = new ResponsePayload();
 
 		$playerId = $request->request->get('playerId');
 		$gameId = $request->request->get('gameId');
 		$cellId = $request->request->get('cellId');
 
-		$game = $this->gameFactory->findByGamePlayer($gameId, $playerId);
+		$game = $this->gameAdapter->findByGamePlayer($gameId, $playerId);
 		if (empty($game)) {
-			$data['message'] = 'Not found.';
-			return $this->getResponse($data);
+			return $this->getResponse($data->setMessage('Not found.'));
 		}
 
 		$winner = $game->getWinner();
 
 		if ($winner) {
-			$data['message'] = 'We got winner!';
-			$data['finished'] = TRUE;
-			return $this->getResponse($data);
+			$data->setMessage('We got winner!')
+				->setFinished(TRUE);
+			return $this->getResponse($data->setMessage('We got winner!')
+				->setFinished(TRUE)
+			);
 		}
 
 		if ($game && $game->getWaiting() !== $playerId) {
-			$data['message'] = 'Not your turn.';
-			return $this->getResponse($data);
+			return $this->getResponse($data->setMessage('Not your turn.'));
 		}
 
 		$cellH = NULL;
 		$cellW = NULL;
 
 		if (!preg_match('/^cell_(\d+)_(\d+)$/', $cellId, $matches)) {
-			$data['message'] = 'Invalid cell ID.';
-			return $this->getResponse($data);
+			return $this->getResponse($data->setMessage('Invalid cell ID.'));
 		} else {
 			$cellH = $matches[1];
 			$cellW = $matches[2];
@@ -60,12 +57,10 @@ class ApiController extends AbstractController
 
 		$field = $game->getField()->getCurrent();
 		if (!array_key_exists($cellH, $field) || !array_key_exists($cellW, $field[$cellH])) {
-			$data['message'] = 'Cell item out of bounds.';
-			return $this->getResponse($data);
+			return $this->getResponse($data->setMessage('Cell item out of bounds.'));
 		} else {
 			if ($field[$cellH][$cellW] !== NULL) {
-				$data['message'] = 'Item already filled.';
-				return $this->getResponse($data);
+				return $this->getResponse($data->setMessage('Item already filled.'));
 			}
 		}
 
@@ -79,24 +74,12 @@ class ApiController extends AbstractController
 		$game->setField($fieldInstance);
 		$game->save();
 
-		$data['success'] = TRUE;
-		$data['field'] = $game->getField()->getCurrent();
-		$data['waiting'] = $game->getWaiting();
+		$data->setSuccess(TRUE)
+			->setField($game->getField()->getCurrent())
+			->setWaiting($game->getWaiting());
 
 		return $this->getResponse($data);
 	}
-
-	/**
-	 * @param array $data
-	 * @return Response
-	 */
-	private function getResponse(array $data)
-	{
-		$response = new Response(json_encode($data));
-		$response->headers->set('Content-Type', 'application/json');
-		return $response;
-	}
-
 
 	/**
 	 * @Route("/status", name="status")
@@ -107,25 +90,34 @@ class ApiController extends AbstractController
 	public function statusAction(Request $request)
 	{
 		$this->initFactory();
-		$data = [
-			'success' => FALSE,
-		];
+		$data = new ResponsePayload();
 
 		$playerId = $request->request->get('playerId');
 		$gameId = $request->request->get('gameId');
 
-		$game = $this->gameFactory->findByGamePlayer($gameId, $playerId);
+		$game = $this->gameAdapter->findByGamePlayer($gameId, $playerId);
 		if (empty($game)) {
-			$data['message'] = 'Not found.';
-			return $this->getResponse($data);
+			return $this->getResponse($data->setMessage('Not found.'));
 		}
 
-		$data['success'] = TRUE;
-		$data['finished'] = $game->getWinner() ? TRUE : FALSE;
-		$data['field'] = $game->getField()->getCurrent();
-		$data['waiting'] = $game->getWaiting();
-		$data['winner'] = $game->getWinner();
+		$data->setSuccess(TRUE)
+			->setFinished($game->getWinner() ? TRUE : FALSE)
+			->setField($game->getField()->getCurrent())
+			->setWaiting($game->getWaiting())
+			->setWinner($game->getWinner());
 
 		return $this->getResponse($data);
 	}
+
+	/**
+	 * @param ResponsePayload $data
+	 * @return Response
+	 */
+	private function getResponse(ResponsePayload $data)
+	{
+		$response = new Response(json_encode($data->toArray()));
+		$response->headers->set('Content-Type', 'application/json');
+		return $response;
+	}
+
 }

@@ -1,10 +1,12 @@
 <?php
-namespace AppBundle\Factory;
+
+namespace AppBundle\Adapter;
 
 use AppBundle\Helper\Database;
-use AppBundle\Model\Game;
+use AppBundle\Model\AbstractModel;
+use AppBundle\Model\Game as GameModel;
 
-class GameFactory
+class Game
 {
 	const GAME_EXPIRE_SECONDS = 3600;
 
@@ -17,21 +19,21 @@ class GameFactory
 	public function __construct($databasePath)
 	{
 		$this->databasePath = $databasePath;
-		$this->db = new Database(new Game(), $databasePath);
+		$this->db = new Database(new GameModel(), $databasePath);
 	}
 
 	/**
 	 * @param $playerId
-	 * @return Game
+	 * @return AbstractModel
 	 */
 	public function pickUpOrCreate($playerId)
 	{
 		$game = NULL;
-		foreach($this->db->fetchAll() as $game) {
+		foreach ($this->db->fetchAll() as $game) {
 			if ($game->hasPlayer($playerId)) {
 				break;
 			}
-			if ($game->getPlayersCount() >= Game::MAX_PLAYERS_COUNT) {
+			if ($game->getPlayersCount() >= GameModel::MAX_PLAYERS_COUNT) {
 				$game = NULL;
 				continue;
 			}
@@ -48,12 +50,12 @@ class GameFactory
 	/**
 	 * @param string $gameId
 	 * @param string $playerId
-	 * @return Game|null
+	 * @return GameModel|null
 	 */
 	public function findByGamePlayer($gameId, $playerId)
 	{
 		$game = NULL;
-		foreach($this->db->fetchAll() as $game) {
+		foreach ($this->db->fetchAll() as $game) {
 			if ($game->getId() !== $gameId) {
 				$game = NULL;
 				continue;
@@ -72,7 +74,7 @@ class GameFactory
 	{
 		$expireTime = new \DateTime();
 		$expireTime->modify('- ' . self::GAME_EXPIRE_SECONDS . ' second');
-		foreach($this->db->fetchAll() as $game) {
+		foreach ($this->db->fetchAll() as $game) {
 			if ($game->getUpdated() < $expireTime) {
 				$game->delete();
 				$game = NULL;
@@ -81,6 +83,9 @@ class GameFactory
 		}
 	}
 
+	/**
+	 * @return AbstractModel
+	 */
 	public function newGame()
 	{
 		return $this->db->insert();

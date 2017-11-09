@@ -1,8 +1,12 @@
 <?php
+
 namespace AppBundle\Model;
 
 abstract class AbstractModel
 {
+	const KEY_CREATED = 'created';
+	const KEY_UPDATED = 'updated';
+
 	/** @var string */
 	private $id;
 
@@ -17,7 +21,7 @@ abstract class AbstractModel
 
 	/**
 	 * Game constructor.
-	 * @param $filePath
+	 * @param string $filePath
 	 */
 	public function __construct($filePath = NULL)
 	{
@@ -36,17 +40,24 @@ abstract class AbstractModel
 		}
 	}
 
+	/**
+	 * @return bool
+	 */
 	public function save()
 	{
 		$this->updated = new \DateTime();
 		$fp = fopen($this->path, 'wb');
-		fputs($fp, $this->toString());
+		$res = fputs($fp, $this->toString());
 		fclose($fp);
+		return (bool) $res;
 	}
 
+	/**
+	 * @return bool
+	 */
 	public function delete()
 	{
-		unlink($this->path);
+		return unlink($this->path);
 	}
 
 	/**
@@ -79,10 +90,10 @@ abstract class AbstractModel
 	private function toString()
 	{
 		$payload = [
-			'id'      => $this->id,
-			'created' => $this->created->format('c'),
-			'updated' => $this->updated->format('c'),
-			'path'    => $this->path,
+			'id'              => $this->id,
+			self::KEY_CREATED => $this->created->format('c'),
+			self::KEY_UPDATED => $this->updated->format('c'),
+			'path'            => $this->path,
 		];
 
 		foreach ($this->getCustomPayload() as $key => $value) {
@@ -99,7 +110,7 @@ abstract class AbstractModel
 	{
 		$payload = json_decode($payload, TRUE);
 		foreach ($payload as $key => $value) {
-			if (in_array($key, ['created', 'updated'])) {
+			if (in_array($key, [self::KEY_CREATED, self::KEY_UPDATED])) {
 				$this->$key = new \DateTime($value);
 				continue;
 			}

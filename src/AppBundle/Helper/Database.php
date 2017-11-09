@@ -1,5 +1,8 @@
 <?php
+
 namespace AppBundle\Helper;
+
+use AppBundle\Model\AbstractModel;
 
 class Database
 {
@@ -12,7 +15,12 @@ class Database
 	/** @var string */
 	private $dbPath;
 
-	public function __construct($instance, $dbPath)
+	/**
+	 * Database constructor.
+	 * @param AbstractModel $instance
+	 * @param string $dbPath
+	 */
+	public function __construct(AbstractModel $instance, $dbPath)
 	{
 		$classPath = explode('\\', get_class($instance));
 		$this->instancePrefix = strtolower(end($classPath));
@@ -20,6 +28,9 @@ class Database
 		$this->dbPath = $dbPath;
 	}
 
+	/**
+	 * @return \Generator
+	 */
 	public function fetchAll()
 	{
 		$dir = opendir($this->dbPath);
@@ -32,15 +43,23 @@ class Database
 		closedir($dir);
 	}
 
-	public function insert() {
-		$itemId = String::uniqid();
+	/**
+	 * @return AbstractModel
+	 */
+	public function insert()
+	{
+		$itemId = uniqid();
 		$fullPath = $this->dbPath . DIRECTORY_SEPARATOR . $this->instancePrefix . '_' . $itemId;
 		$game = new $this->instanceName($fullPath);
 		return $game;
 	}
 
-	public function update($instance)
+	/**
+	 * @param AbstractModel $instance
+	 * @return bool
+	 */
+	public function update(AbstractModel $instance)
 	{
-		$instance->save();
+		return $instance->save();
 	}
 }
